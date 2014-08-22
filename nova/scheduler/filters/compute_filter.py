@@ -35,6 +35,7 @@ class ComputeFilter(filters.BaseHostFilter):
     run_filter_once_per_request = True
 
     def host_passes(self, host_state, filter_properties):
+#	import pudb;pu.db
         """Returns True for only active compute nodes."""
         service = host_state.service
         if service['disabled']:

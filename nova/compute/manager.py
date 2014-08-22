@@ -47,6 +47,7 @@ from oslo.utils import strutils
 from oslo.utils import timeutils
 import six
 
+from nova import baserpc
 from nova import block_device
 from nova.cells import rpcapi as cells_rpcapi
 from nova.cloudpipe import pipelib
@@ -74,6 +75,7 @@ from nova import network
 from nova.network import model as network_model
 from nova.network.security_group import openstack_driver
 from nova import objects
+from nova.objects import flavor as flavor_obj
 from nova.objects import base as obj_base
 from nova.objects import instance as instance_obj
 from nova.objects import quotas as quotas_obj
@@ -225,6 +227,7 @@ CONF.register_opts(timeout_opts)
 CONF.register_opts(running_deleted_opts)
 CONF.register_opts(instance_cleaning_opts)
 CONF.import_opt('allow_resize_to_same_host', 'nova.compute.api')
+CONF.import_opt('bypass_scheduler', 'nova.scheduler')
 CONF.import_opt('console_topic', 'nova.console.rpcapi')
 CONF.import_opt('host', 'nova.netconf')
 CONF.import_opt('my_ip', 'nova.netconf')
@@ -1186,6 +1189,41 @@ class ComputeManager(manager.Manager):
             return self.driver.get_info(instance).state
         except exception.NotFound:
             return power_state.NOSTATE
+
+    def post_start_hook(self):
+        """
+        Perform additional operations after the compute service is
+        up and running
+        """
+        # Make compute listen on additional topics based on instance types if 
+        # it should pick up create instance requests directly placed on a
+        # queue
+        if CONF.bypass_scheduler:
+                self._subscribe_to_instance_type_topics()
+ #               pass
+        else:
+                pass
+
+    def _subscribe_to_instance_type_topics(self):
+        endpoints = [self, baserpc.BaseRPCAPI(self.service_name,
+                                              self.backdoor_port)]
+        endpoints.extend(self.additional_endpoints)
+        serializer = obj_base.NovaObjectSerializer()
+        context = nova.context.get_admin_context()
+#        instance_types = flavor_obj.FlavorList.get_all(context)
+#	instance_types=['m1.nano']
+#        for instance_type in instance_types:
+                # Replace '.' in the flavor name with '-' to avoid conflicts in the
+                # messaging layer
+	instance_type='m1.nano'
+        instance_type_topic = instance_type.replace('.', '-')
+        LOG.debug(_("Creating RPC server for %s")
+			    % instance_type_topic)
+        target = messaging.Target(topic=instance_type_topic,
+                                          server=self.host)
+        self.rpcserver = rpc.get_server(target,
+                                        endpoints, serializer)
+        self.rpcserver.start()
 
     def get_console_topic(self, context):
         """Retrieves the console host for a project on this host.
