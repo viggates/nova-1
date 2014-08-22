@@ -508,6 +508,7 @@ class ResourceTracker(object):
         # NOTE(pmurray): the stats field is stored as a json string. The
         # json conversion will be done automatically by the ComputeNode object
         # so this can be removed when using ComputeNode.
+#	import pudb;pu.db
         values['stats'] = jsonutils.dumps(values['stats'])
 
         if not self._resource_change(values):

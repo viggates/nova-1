@@ -20,3 +20,15 @@
    :platform: Unix
    :synopsis: Module that picks a compute node to run a VM instance.
 """
+from oslo.config import cfg
+
+bypass_scheduler_opt = cfg.BoolOpt('bypass_scheduler',
+        default='False',
+        help=('whether to use the nova scheduler to make instance '
+              'placement decisions or bypass it and place requests '
+              'directly on to the message queue for a random node '
+              'to fulfill. Use the scheduler by default'))
+
+CONF = cfg.CONF
+CONF.register_opt(bypass_scheduler_opt)
+
