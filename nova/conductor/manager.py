@@ -47,6 +47,7 @@ from nova import quota
 from nova.scheduler import client as scheduler_client
 from nova.scheduler import driver as scheduler_driver
 from nova.scheduler import utils as scheduler_utils
+from oslo.config import cfg
 
 LOG = logging.getLogger(__name__)
 
@@ -611,6 +612,7 @@ class ComputeTaskManager(base.Base):
             security_groups, block_device_mapping=None, legacy_bdm=True):
         # TODO(ndipanov): Remove block_device_mapping and legacy_bdm in version
         #                 2.0 of the RPC API.
+#	import pudb;pu.db
         request_spec = scheduler_utils.build_request_spec(context, image,
                                                           instances)
         scheduler_utils.setup_instance_group(context, request_spec,
@@ -652,6 +654,11 @@ class ComputeTaskManager(base.Base):
             bdms = objects.BlockDeviceMappingList.get_by_instance_uuid(
                     context, instance.uuid)
 
+	    CONF = cfg.CONF
+	    if CONF.bypass_scheduler:
+                host['host']=None
+                host['nodename']=None
+#            import pudb;pu.db
             self.compute_rpcapi.build_and_run_instance(context,
                     instance=instance, host=host['host'], image=image,
                     request_spec=request_spec,

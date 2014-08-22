@@ -892,7 +892,17 @@ class ComputeAPI(object):
             flavor_p = objects_base.obj_to_primitive(flavor)
             filter_properties = dict(filter_properties, instance_type=flavor_p)
 
-        cctxt = self.client.prepare(server=host, version=version)
+	if not CONF.bypass_scheduler:
+            cctxt = self.client.prepare(server=host, version=version)
+	else:
+	    topic=instance.system_metadata['instance_type_name'].replace('.', '-')
+            #instance_type_topic = instance_type.name.replace('.', '-')
+            target = messaging.Target(topic=topic, version='3.0')
+            version_cap = self.VERSION_ALIASES.get(CONF.upgrade_levels.compute,
+                                               CONF.upgrade_levels.compute)
+            serializer = objects_base.NovaObjectSerializer()
+            self.client = self.get_client(target, version_cap, serializer)
+            cctxt = self.client.prepare(version=version)
         cctxt.cast(ctxt, 'build_and_run_instance', instance=instance,
                 image=image, request_spec=request_spec,
                 filter_properties=filter_properties,
