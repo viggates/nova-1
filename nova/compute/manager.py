@@ -1278,6 +1278,7 @@ class ComputeManager(manager.Manager):
         serializer = obj_base.NovaObjectSerializer()
         context = nova.context.get_admin_context()
 	#test
+	self.update_available_resource(context)
 	nodenames = set(self.driver.get_available_nodes())
         for nodename in nodenames:
             rt = self._get_resource_tracker(nodename)
@@ -1294,7 +1295,6 @@ class ComputeManager(manager.Manager):
 #		LOG.info("Test variable %s",self.rpcserver_flavor)
 #	except:
 #		self.rpcserver_flavor={}
-	self.update_available_resource(context)
         for instance_type in instance_types:
                 # Replace '.' in the flavor name with '-' to avoid conflicts in the
                 # messaging layer
@@ -2397,6 +2397,7 @@ class ComputeManager(manager.Manager):
                 extra_usage_info={'message': _('Success')},
                 network_info=network_info)
 	#Assuming this is where instance is launched successfully. So we can resubscribe if required
+	import pudb;pu.db
         self._subscribe_to_instance_type_topics()
 
 	
