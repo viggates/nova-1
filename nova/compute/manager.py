@@ -1233,7 +1233,7 @@ class ComputeManager(manager.Manager):
 
 	# Check if sufficient Cores are there
 	instance_vcpus = instance_type.vcpus
-        cpu_allocation_ratio = 1 # self._get_cpu_allocation_ratio(host_state,
+        cpu_allocation_ratio = 10 # self._get_cpu_allocation_ratio(host_state,
                                                #           filter_properties)
         vcpus_total = host_state['vcpus'] * cpu_allocation_ratio
 
@@ -2738,6 +2738,9 @@ class ComputeManager(manager.Manager):
         def do_terminate_instance(instance, bdms):
             try:
                 self._delete_instance(context, instance, bdms, quotas)
+	    	# I guess this is the place where subscription needs to refreshed.
+ 	    	# Also need to validation if scalable scheduler is True
+	    	self._subscribe_to_instance_type_topics()
             except exception.InstanceNotFound:
                 LOG.info(_LI("Instance disappeared during terminate"),
                          instance=instance)
