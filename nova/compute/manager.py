@@ -1319,7 +1319,8 @@ class ComputeManager(manager.Manager):
 #		        self.rpcserver = rpc.get_server(target,
         #                                endpoints, serializer)
 #		        self.rpcserver.start()
-			self.rpcserver_flavor[instance_type_topic]=rpc.get_server(target,endpoints, serializer)
+			if not (instance_type_topic in self.rpcserver_flavor.keys()):
+				self.rpcserver_flavor[instance_type_topic]=rpc.get_server(target,endpoints, serializer)
 			self.rpcserver_flavor[instance_type_topic].start()
 		else:
 			LOG.info(_("Stopping and Deleting RPC server for %s")
