@@ -633,6 +633,7 @@ class ComputeManager(manager.Manager):
                             self.driver.need_legacy_block_device_info
 
     def _get_resource_tracker(self, nodename):
+#	import pudb;pu.db
         rt = self._resource_tracker_dict.get(nodename)
         if not rt:
             if not self.driver.node_is_available(nodename):
@@ -1198,11 +1199,83 @@ class ComputeManager(manager.Manager):
         # Make compute listen on additional topics based on instance types if 
         # it should pick up create instance requests directly placed on a
         # queue
+	import pudb;pu.db
         if CONF.bypass_scheduler:
                 self._subscribe_to_instance_type_topics()
  #               pass
         else:
                 pass
+
+    def _subscribe_unsubscribe_topic(self,host_state,instance_type):
+        """Validates host resources against instance type and returns
+        True to subscribe to the flavor type and False to unsubscribe
+        to the flavor type. Makes use of similar code from schedular
+        filter - Ram, Cores and Disk
+        """
+
+        # Check if sufficient RAM is available.
+        requested_ram = instance_type.memory_mb
+        free_ram_mb = host_state['free_ram_mb']
+        total_usable_ram_mb = host_state['memory_mb'] #host_state['total_usable_ram_mb']
+        ram_allocation_ratio = 1 #self._get_ram_allocation_ratio(host_state,
+                                 #                         filter_properties)
+        memory_mb_limit = total_usable_ram_mb * ram_allocation_ratio
+        used_ram_mb = total_usable_ram_mb - free_ram_mb
+        usable_ram = memory_mb_limit - used_ram_mb
+        if not usable_ram >= requested_ram:
+            LOG.debug("Cannot subscribe to the type(%s) as the host is not capable - RAM", instance_type.name)
+            return False
+        # save oversubscription limit for compute node to test against:
+#        host_state.limits['memory_mb'] = memory_mb_limit
+
+
+
+	# Check if sufficient Cores are there
+	instance_vcpus = instance_type.vcpus
+        cpu_allocation_ratio = 1 # self._get_cpu_allocation_ratio(host_state,
+                                               #           filter_properties)
+        vcpus_total = host_state['vcpus'] * cpu_allocation_ratio
+
+        # Only provide a VCPU limit to compute if the virt driver is reporting
+        # an accurate count of installed VCPUs. (XenServer driver does not)
+#        if vcpus_total > 0:
+#            host_state.limits['vcpu'] = vcpus_total
+
+        free_vcpus = vcpus_total - host_state['vcpus_used']
+        if free_vcpus < instance_vcpus:
+            LOG.debug("Cannot subscribe to the type(%s) as the host is not capable - vcpu", instance_type.name)
+            return False
+
+
+
+	# Check if sufficient disk space is there
+	requested_disk = (1024 * (instance_type.root_gb +
+                                 instance_type.ephemeral_gb) +
+                         instance_type.swap)
+	free_gb = host_state['free_disk_gb']
+        least_gb = host_state.get('disk_available_least')
+        if least_gb is not None:
+            if least_gb > free_gb:
+                # can occur when an instance in database is not on host
+                LOG.warn(_("Host has more disk space than database expected"
+                           " (%(physical)sgb > %(database)sgb)") %
+                         {'physical': least_gb, 'database': free_gb})
+            free_gb = min(least_gb, free_gb)
+
+	free_disk_mb = free_gb * 1024
+        total_usable_disk_mb = host_state['local_gb'] * 1024
+
+        disk_mb_limit = total_usable_disk_mb * 1 #CONF.disk_allocation_ratio
+        used_disk_mb = total_usable_disk_mb - free_disk_mb
+        usable_disk_mb = disk_mb_limit - used_disk_mb
+	if not usable_disk_mb >= requested_disk:
+	    LOG.debug("Cannot subscribe to the type(%s) as the host is not capable - disk", instance_type.name)
+            return False
+
+#        disk_gb_limit = disk_mb_limit / 1024
+#        host_state.limits['disk_gb'] = disk_gb_limit
+
+        return True
 
     def _subscribe_to_instance_type_topics(self):
         endpoints = [self, baserpc.BaseRPCAPI(self.service_name,
@@ -1210,21 +1283,83 @@ class ComputeManager(manager.Manager):
         endpoints.extend(self.additional_endpoints)
         serializer = obj_base.NovaObjectSerializer()
         context = nova.context.get_admin_context()
-#        instance_types = flavor_obj.FlavorList.get_all(context)
+	#test
+	nodenames = set(self.driver.get_available_nodes())
+        for nodename in nodenames:
+            rt = self._get_resource_tracker(nodename)
+            host_state=rt.get_available_oldresource()
+#	    host_state=self.update_host_state_info(host_state)
+
+	LOG.info('available resource = %s',host_state)
+	#get_available_oldresource()
+        instance_types = flavor_obj.FlavorList.get_all(context)
 #	instance_types=['m1.nano']
-#        for instance_type in instance_types:
+	self.rpcserver_flavor={}
+        for instance_type in instance_types:
                 # Replace '.' in the flavor name with '-' to avoid conflicts in the
                 # messaging layer
-	instance_type='m1.nano'
-        instance_type_topic = instance_type.replace('.', '-')
-        LOG.debug(_("Creating RPC server for %s")
+	# create a method recalculate
+	# create subsctibe and subscribe methods
+	#
+#	instance_type='m1.nano'
+	        instance_type_topic = instance_type.name.replace('.', '-')
+		if (self._subscribe_unsubscribe_topic(host_state,instance_type)):
+		        LOG.debug(_("Creating RPC server for %s")
 			    % instance_type_topic)
-        target = messaging.Target(topic=instance_type_topic,
+		        target = messaging.Target(topic=instance_type_topic,
                                           server=self.host)
-        self.rpcserver = rpc.get_server(target,
-                                        endpoints, serializer)
-        self.rpcserver.start()
+#		        self.rpcserver = rpc.get_server(target,
+        #                                endpoints, serializer)
+#		        self.rpcserver.start()
+			self.rpcserver_flavor[instance_type_topic]=rpc.get_server(target,endpoints, serializer)
+			self.rpcserver_flavor[instance_type_topic].start()
+		else:
+			if (instance_type_topic in self.rpcserver_flavor.keys()):
+				self.rpcserver_flavor[instance_type_topic].stop()
+#			self.rpcserver.stop()
 
+#   def update_host_state_info(self,host_state):
+#	"""Update information about a host"""
+#	all_ram_mb = host_state['memory_mb']
+	#free_gb = compute['free_disk_gb']
+	#least_gb = compute.get('disk_available_least')
+	#if least_gb is not None:
+        #    if least_gb > free_gb:
+	#	LOG.warn("Host has more disk space than DB")
+	#    free_gb = min(least_gb, free_gb)
+#	free_disk_mb = free_gb * 1024
+#	disk_mb_used = host_state['local_gb_used'] * 1024
+#	free_ram_mb = host_state['free_ram_mb']
+#        total_usable_ram_mb = all_ram_mb
+#	host_state['']
+#       total_usable_disk_gb = compute['local_gb']
+#       free_disk_mb = free_disk_mb
+#       vcpus_total = compute['vcpus']
+#       vcpus_used = compute['vcpus_used']
+        #updated = compute['updated_at']
+#	if 'pci_stats' in compute:
+#            pci_stats = pci_stats.PciDeviceStats(compute['pci_stats'])
+#        else:
+#            pci_stats = None
+#	host_ip = compute['host_ip']
+#        hypervisor_type = compute.get('hypervisor_type')
+#        hypervisor_version = compute.get('hypervisor_version')
+#        hypervisor_hostname = compute.get('hypervisor_hostname')
+#        cpu_info = compute.get('cpu_info')
+#        if compute.get('supported_instances'):
+#            self.supported_instances = jsonutils.loads(
+#                    compute.get('supported_instances'))
+#	stats = compute.get('stats', None) or '{}'
+#        stats = jsonutils.loads(stats)
+
+        # Track number of instances on host
+#        num_instances = int(self.stats.get('num_instances', 0))
+
+#        num_io_ops = int(self.stats.get('io_workload', 0))
+
+        # update metrics
+        #self._update_metrics_from_compute_node(compute)
+	
     def get_console_topic(self, context):
         """Retrieves the console host for a project on this host.
 
