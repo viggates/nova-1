@@ -620,6 +620,7 @@ class ComputeManager(manager.Manager):
         self.instance_events = InstanceEvents()
         self._sync_power_pool = eventlet.GreenPool()
         self._syncs_in_progress = {}
+	self.rpcserver_flavor={}
 
         super(ComputeManager, self).__init__(service_name="compute",
                                              *args, **kwargs)
@@ -1191,7 +1192,7 @@ class ComputeManager(manager.Manager):
         # Make compute listen on additional topics based on instance types if 
         # it should pick up create instance requests directly placed on a
         # queue
-	import pudb;pu.db
+#	import pudb;pu.db
         if CONF.bypass_scheduler:
                 self._subscribe_to_instance_type_topics()
  #               pass
@@ -1215,7 +1216,7 @@ class ComputeManager(manager.Manager):
         used_ram_mb = total_usable_ram_mb - free_ram_mb
         usable_ram = memory_mb_limit - used_ram_mb
         if not usable_ram >= requested_ram:
-            LOG.debug("Cannot subscribe to the type(%s) as the host is not capable - RAM", instance_type.name)
+            LOG.info("Cannot subscribe to the type(%s) as the host is not capable - RAM", instance_type.name)
             return False
         # save oversubscription limit for compute node to test against:
 #        host_state.limits['memory_mb'] = memory_mb_limit
@@ -1235,7 +1236,7 @@ class ComputeManager(manager.Manager):
 
         free_vcpus = vcpus_total - host_state['vcpus_used']
         if free_vcpus < instance_vcpus:
-            LOG.debug("Cannot subscribe to the type(%s) as the host is not capable - vcpu", instance_type.name)
+            LOG.info("Cannot subscribe to the type(%s) as the host is not capable - vcpu", instance_type.name)
             return False
 
 
@@ -1261,7 +1262,7 @@ class ComputeManager(manager.Manager):
         used_disk_mb = total_usable_disk_mb - free_disk_mb
         usable_disk_mb = disk_mb_limit - used_disk_mb
 	if not usable_disk_mb >= requested_disk:
-	    LOG.debug("Cannot subscribe to the type(%s) as the host is not capable - disk", instance_type.name)
+	    LOG.info("Cannot subscribe to the type(%s) as the host is not capable - disk", instance_type.name)
             return False
 
 #        disk_gb_limit = disk_mb_limit / 1024
@@ -1286,7 +1287,13 @@ class ComputeManager(manager.Manager):
 	#get_available_oldresource()
         instance_types = flavor_obj.FlavorList.get_all(context)
 #	instance_types=['m1.nano']
-	self.rpcserver_flavor={}
+#	if not 'self.rpcserver_flavor' in locals():
+#	if (self.rpcserver_flavor=={}):
+#		self.rpcserver_flavor
+#		LOG.info("Test variable %s",self.rpcserver_flavor)
+#	except:
+#		self.rpcserver_flavor={}
+
         for instance_type in instance_types:
                 # Replace '.' in the flavor name with '-' to avoid conflicts in the
                 # messaging layer
@@ -1296,7 +1303,7 @@ class ComputeManager(manager.Manager):
 #	instance_type='m1.nano'
 	        instance_type_topic = instance_type.name.replace('.', '-')
 		if (self._subscribe_unsubscribe_topic(host_state,instance_type)):
-		        LOG.debug(_("Creating RPC server for %s")
+		        LOG.info(_("Creating RPC server for %s")
 			    % instance_type_topic)
 		        target = messaging.Target(topic=instance_type_topic,
                                           server=self.host)
@@ -1308,6 +1315,7 @@ class ComputeManager(manager.Manager):
 		else:
 			if (instance_type_topic in self.rpcserver_flavor.keys()):
 				self.rpcserver_flavor[instance_type_topic].stop()
+				del self.rpcserver_flavor[instance_type_topic]
 #			self.rpcserver.stop()
 
 #   def update_host_state_info(self,host_state):
@@ -2384,6 +2392,10 @@ class ComputeManager(manager.Manager):
         self._notify_about_instance_usage(context, instance, 'create.end',
                 extra_usage_info={'message': _('Success')},
                 network_info=network_info)
+	#Assuming this is where instance is launched successfully. So we can resubscribe if required
+        self._subscribe_to_instance_type_topics()
+
+	
 
     @contextlib.contextmanager
     def _build_resources(self, context, instance, requested_networks,
