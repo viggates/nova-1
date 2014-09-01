@@ -833,6 +833,9 @@ class ComputeManager(manager.Manager):
             else:
                 self.consoleauth_rpcapi.delete_tokens_for_instance(context,
                         instance.uuid)
+	# I guess this is the place where subscription needs to refreshed.
+        # Also need to validate if scalable scheduler is True
+        self._subscribe_to_instance_type_topics()
 
     def _init_instance(self, context, instance):
         '''Initialize this instance during service init.'''
@@ -1304,23 +1307,20 @@ class ComputeManager(manager.Manager):
 #	instance_type='m1.nano'
 	        instance_type_topic = instance_type.name.replace('.', '-')
 		if (self._subscribe_unsubscribe_topic(host_state,instance_type)):
-		        LOG.info(_("Creating RPC server for %s")
-			    % instance_type_topic)
-		        target = messaging.Target(topic=instance_type_topic,
-                                          server=self.host)
-#		        self.rpcserver = rpc.get_server(target,
-        #                                endpoints, serializer)
-#		        self.rpcserver.start()
+			LOG.info(_("Creating RPC server for %s")
+					 % instance_type_topic)
+			target = messaging.Target(topic=instance_type_topic,
+						 server=self.host)
 			if not (instance_type_topic in self.rpcserver_flavor.keys()):
 				self.rpcserver_flavor[instance_type_topic]=rpc.get_server(target,endpoints, serializer)
 				self.rpcserver_flavor[instance_type_topic].start()
 		else:
-			LOG.info(_("Stopping and Deleting RPC server for %s")
-                            % instance_type_topic)
-			if (instance_type_topic in self.rpcserver_flavor.keys()):
-				self.rpcserver_flavor[instance_type_topic].stop()
-				del self.rpcserver_flavor[instance_type_topic]
-#			self.rpcserver.stop()
+				LOG.info(_("Stopping and Deleting RPC server for %s")
+						 % instance_type_topic)
+				if (instance_type_topic in self.rpcserver_flavor.keys()):
+					self.rpcserver_flavor[instance_type_topic].stop()
+					del self.rpcserver_flavor[instance_type_topic]
+			# self.rpcserver.stop()
 
 #   def update_host_state_info(self,host_state):
 #	"""Update information about a host"""
@@ -2308,6 +2308,10 @@ class ComputeManager(manager.Manager):
                 # NOTE(russellb) It's important that this validation be done
                 # *after* the resource tracker instance claim, as that is where
                 # the host is set on the instance.
+		#Assuming this is where instance is launched successfully. So we can resubscribe if required
+#		import pudb;pu.db
+	        self._subscribe_to_instance_type_topics()
+
                 self._validate_instance_group_policy(context, instance,
                         filter_properties)
                 with self._build_resources(context, instance,
@@ -2397,8 +2401,8 @@ class ComputeManager(manager.Manager):
                 extra_usage_info={'message': _('Success')},
                 network_info=network_info)
 	#Assuming this is where instance is launched successfully. So we can resubscribe if required
-	import pudb;pu.db
-        self._subscribe_to_instance_type_topics()
+#	import pudb;pu.db
+#        self._subscribe_to_instance_type_topics()
 
 	
 
@@ -2731,7 +2735,7 @@ class ComputeManager(manager.Manager):
                 self._delete_instance(context, instance, bdms, quotas)
 	    	# I guess this is the place where subscription needs to refreshed.
  	    	# Also need to validation if scalable scheduler is True
-	    	self._subscribe_to_instance_type_topics()
+	    	#self._subscribe_to_instance_type_topics()
             except exception.InstanceNotFound:
                 LOG.info(_LI("Instance disappeared during terminate"),
                          instance=instance)
