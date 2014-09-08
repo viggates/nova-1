@@ -621,6 +621,7 @@ class ComputeManager(manager.Manager):
         self._sync_power_pool = eventlet.GreenPool()
         self._syncs_in_progress = {}
 	self.rpcserver_flavor={}
+	self.rpcserver_flavor_status={}
 
         super(ComputeManager, self).__init__(service_name="compute",
                                              *args, **kwargs)
@@ -1228,7 +1229,7 @@ class ComputeManager(manager.Manager):
 
 	# Check if sufficient Cores are there
 	instance_vcpus = instance_type.vcpus
-        cpu_allocation_ratio = 10 # self._get_cpu_allocation_ratio(host_state,
+        cpu_allocation_ratio = 1 # self._get_cpu_allocation_ratio(host_state,
                                                #           filter_properties)
         vcpus_total = host_state['vcpus'] * cpu_allocation_ratio
 
@@ -1291,34 +1292,38 @@ class ComputeManager(manager.Manager):
 	#get_available_oldresource()
         instance_types = flavor_obj.FlavorList.get_all(context)
 #	instance_types=['m1.nano']
-#	if not 'self.rpcserver_flavor' in locals():
-#	if (self.rpcserver_flavor=={}):
-#		self.rpcserver_flavor
-#		LOG.info("Test variable %s",self.rpcserver_flavor)
-#	except:
-#		self.rpcserver_flavor={}
         for instance_type in instance_types:
-                # Replace '.' in the flavor name with '-' to avoid conflicts in the
-                # messaging layer
-	# create a method recalculate
-	# create subsctibe and subscribe methods
-	#
 #	instance_type='m1.nano'
+		# 0 - stopped
+		# 1 - running
 	        instance_type_topic = instance_type.name.replace('.', '-')
-		if (self._subscribe_unsubscribe_topic(host_state,instance_type)):
+		if not (instance_type_topic in self.rpcserver_flavor.keys()):
 			LOG.info(_("Creating RPC server for %s")
-					 % instance_type_topic)
-			target = messaging.Target(topic=instance_type_topic,
-						 server=self.host)
-			if not (instance_type_topic in self.rpcserver_flavor.keys()):
-				self.rpcserver_flavor[instance_type_topic]=rpc.get_server(target,endpoints, serializer)
+                                         % instance_type_topic)
+                        target = messaging.Target(topic=instance_type_topic,
+                                                 server=self.host)
+			self.rpcserver_flavor[instance_type_topic]=rpc.get_server(target,endpoints, serializer)
+			self.rpcserver_flavor_status[instance_type_topic]=0
+		if (self._subscribe_unsubscribe_topic(host_state,instance_type)):
+			if (self.rpcserver_flavor_status[instance_type_topic]==0):
+				LOG.info(_("Starting RPC server for %s")
+                                         % instance_type_topic)
+#				import pudb;pu.db
+				self.rpcserver_flavor[instance_type_topic].wait()
 				self.rpcserver_flavor[instance_type_topic].start()
+				self.rpcserver_flavor_status[instance_type_topic]=1
 		else:
-				LOG.info(_("Stopping and Deleting RPC server for %s")
+			LOG.info(_("Stopping and Deleting RPC server for %s")
 						 % instance_type_topic)
-				if (instance_type_topic in self.rpcserver_flavor.keys()):
-					self.rpcserver_flavor[instance_type_topic].stop()
-					del self.rpcserver_flavor[instance_type_topic]
+			if (self.rpcserver_flavor_status[instance_type_topic]==1):
+				LOG.info(_("Stopped RPC server for %s")
+                                         % instance_type_topic)
+#				import pudb;pu.db
+				self.rpcserver_flavor[instance_type_topic].stop()
+#				self.rpcserver_flavor[instance_type_topic].wait()
+				self.rpcserver_flavor_status[instance_type_topic]=0
+
+	self.update_available_resource(context)
 			# self.rpcserver.stop()
 
 #   def update_host_state_info(self,host_state):
