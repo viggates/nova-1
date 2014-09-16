@@ -1219,11 +1219,46 @@ class ComputeManager(manager.Manager):
         """
 
 #	import pudb;pu.db
+
+	#Need to move some of these config to the right place
+	## RAM allocation Ratio
+	ram_allocation_ratio_opt = cfg.FloatOpt('ram_allocation_ratio',
+        default=1.5,
+        help='Virtual ram to physical ram allocation ratio which affects '
+             'all ram filters. This configuration specifies a global ratio '
+             'for RamFilter. For AggregateRamFilter, it will fall back to '
+             'this configuration value if no per-aggregate setting found.')
+
+	CONF = cfg.CONF
+	CONF.register_opt(ram_allocation_ratio_opt)
+	ram_allocation_ratio = CONF.ram_allocation_ratio
+	# Should we need to use the logic in AggregateRamFilter
+
+	## CPU allocation ratio
+	cpu_allocation_ratio_opt = cfg.FloatOpt('cpu_allocation_ratio',
+        default=16.0,
+        help='Virtual CPU to physical CPU allocation ratio which affects '
+             'all CPU filters. This configuration specifies a global ratio '
+             'for CoreFilter. For AggregateCoreFilter, it will fall back to '
+             'this configuration value if no per-aggregate setting found.')
+
+	CONF = cfg.CONF
+	CONF.register_opt(cpu_allocation_ratio_opt)
+	cpu_allocation_ratio = CONF.cpu_allocation_ratio
+
+	## Disk allocation ratio
+	disk_allocation_ratio_opt = cfg.FloatOpt("disk_allocation_ratio", default=1.0,
+                         help="Virtual disk to physical disk allocation ratio")
+
+	CONF = cfg.CONF
+	CONF.register_opt(disk_allocation_ratio_opt)
+	disk_allocation_ratio = CONF.disk_allocation_ratio
+
         # Check if sufficient RAM is available.
         requested_ram = instance_type.memory_mb
         free_ram_mb = host_state['free_ram_mb']
         total_usable_ram_mb = host_state['memory_mb'] #host_state['total_usable_ram_mb']
-        ram_allocation_ratio = 1 #self._get_ram_allocation_ratio(host_state,
+#        ram_allocation_ratio = 1 #self._get_ram_allocation_ratio(host_state,
                                  #                         filter_properties)
         memory_mb_limit = total_usable_ram_mb * ram_allocation_ratio
         used_ram_mb = total_usable_ram_mb - free_ram_mb
@@ -1238,8 +1273,6 @@ class ComputeManager(manager.Manager):
 
 	# Check if sufficient Cores are there
 	instance_vcpus = instance_type.vcpus
-        cpu_allocation_ratio = 1 # self._get_cpu_allocation_ratio(host_state,
-                                               #           filter_properties)
         vcpus_total = host_state['vcpus'] * cpu_allocation_ratio
 
         # Only provide a VCPU limit to compute if the virt driver is reporting
@@ -1271,7 +1304,7 @@ class ComputeManager(manager.Manager):
 	free_disk_mb = free_gb * 1024
         total_usable_disk_mb = host_state['local_gb'] * 1024
 
-        disk_mb_limit = total_usable_disk_mb * 1 #CONF.disk_allocation_ratio
+        disk_mb_limit = total_usable_disk_mb * disk_allocation_ratio
         used_disk_mb = total_usable_disk_mb - free_disk_mb
         usable_disk_mb = disk_mb_limit - used_disk_mb
 	if not usable_disk_mb >= requested_disk:
@@ -1318,6 +1351,11 @@ class ComputeManager(manager.Manager):
 				LOG.info(_("Starting RPC server for %s")
                                          % instance_type_topic)
 #				import pudb;pu.db
+				#Stop method does not clear the objects, hence wait needs to be called
+                                #after stop ideally. Wait method is the one which clears the objects.
+                                #In our case we have called wait before stop because, the thread we are
+                                #trying to kill in wait method is the one which is calling the wait
+                                # method (something like self kill).
 				self.rpcserver_flavor[instance_type_topic].wait()
 				self.rpcserver_flavor[instance_type_topic].start()
 				self.rpcserver_flavor_status[instance_type_topic]=1
