@@ -657,8 +657,10 @@ class ComputeTaskManager(base.Base):
 	                LOG.debug('Instance deleted during build', instance=instance)
 	                continue
 	            local_filter_props = copy.deepcopy(filter_properties)
+
 	            scheduler_utils.populate_filter_properties(local_filter_props,
 	                host)
+
 	            # The block_device_mapping passed from the api doesn't contain
 	            # instance specific information
 	            bdms = objects.BlockDeviceMappingList.get_by_instance_uuid(
@@ -680,10 +682,27 @@ class ComputeTaskManager(base.Base):
 	                    block_device_mapping=bdms, node=host['nodename'],
 	                    limits=host['limits'])
 	else:
+		max_attempts = CONF.scheduler_max_attempts
+	        if max_attempts < 1:
+	            raise exception.NovaException(_("Invalid value for "
+                       "max_attempts', must be >= 1"))
+		import pudb;pu.db
+                # Removed "scheduler_utils.populate_retry"
+
+                retry = filter_properties.setdefault(
+                   'retry', {
+                       'num_attempts': 0,
+                       'hosts': []  # list of compute hosts tried
+                })
+                retry['num_attempts'] += 1
+		if retry['num_attempts'] > max_attempts:
+		    raise exception.NovaException(_("Exceeded max attempts"))
+
+#                       scheduler_utils.populate_retry(filter_properties,
+#                        instances[0].uuid)
+
 		for instance in instances:
-                    try:
-			scheduler_utils.populate_retry(filter_properties,
-	                        instances[0].uuid)
+		    try:
                         instance.refresh()
                     except (exception.InstanceNotFound,
                             exception.InstanceInfoCacheNotFound):
