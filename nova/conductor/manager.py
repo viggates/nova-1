@@ -623,64 +623,64 @@ class ComputeTaskManager(base.Base):
 	LOG.info("Got new request ***********")
 	CONF = cfg.CONF
         if not CONF.bypass_scheduler:
-	        request_spec = scheduler_utils.build_request_spec(context, image,
+	    request_spec = scheduler_utils.build_request_spec(context, image,
                                                           instances)
-        scheduler_utils.setup_instance_group(context, request_spec,
+            scheduler_utils.setup_instance_group(context, request_spec,
                                              filter_properties)
         # TODO(danms): Remove this in version 2.0 of the RPC API
-	        if (requested_networks and
-	                not isinstance(requested_networks,
-	                               objects.NetworkRequestList)):
-	            requested_networks = objects.NetworkRequestList(
-	                objects=[objects.NetworkRequest.from_tuple(t)
-	                         for t in requested_networks])
+	    if (requested_networks and
+	            not isinstance(requested_networks,
+	                           objects.NetworkRequestList)):
+	        requested_networks = objects.NetworkRequestList(
+	            objects=[objects.NetworkRequest.from_tuple(t)
+	                     for t in requested_networks])
 
-        	try:
-	            # check retry policy. Rather ugly use of instances[0]...
-	            # but if we've exceeded max retries... then we really only
-	            # have a single instance.
-	            scheduler_utils.populate_retry(filter_properties,
-	                instances[0].uuid)
-	            hosts = self.scheduler_client.select_destinations(context,
-	                    request_spec, filter_properties)
-	        except Exception as exc:
-	            for instance in instances:
-	                scheduler_driver.handle_schedule_error(context, exc,
-	                        instance.uuid, request_spec)
-	            return
+            try:
+	        # check retry policy. Rather ugly use of instances[0]...
+	        # but if we've exceeded max retries... then we really only
+	        # have a single instance.
+	        scheduler_utils.populate_retry(filter_properties,
+	            instances[0].uuid)
+	        hosts = self.scheduler_client.select_destinations(context,
+	                request_spec, filter_properties)
+	    except Exception as exc:
+	        for instance in instances:
+	            scheduler_driver.handle_schedule_error(context, exc,
+	                    instance.uuid, request_spec)
+	        return
 
-	        for (instance, host) in itertools.izip(instances, hosts):
-	            try:
-	                instance.refresh()
-	            except (exception.InstanceNotFound,
-	                    exception.InstanceInfoCacheNotFound):
-	                LOG.debug('Instance deleted during build', instance=instance)
-	                continue
-	            local_filter_props = copy.deepcopy(filter_properties)
+	    for (instance, host) in itertools.izip(instances, hosts):
+	        try:
+	            instance.refresh()
+	        except (exception.InstanceNotFound,
+	                exception.InstanceInfoCacheNotFound):
+	            LOG.debug('Instance deleted during build', instance=instance)
+	            continue
+	        local_filter_props = copy.deepcopy(filter_properties)
 
-	            scheduler_utils.populate_filter_properties(local_filter_props,
-	                host)
+	        scheduler_utils.populate_filter_properties(local_filter_props,
+	            host)
 
-	            # The block_device_mapping passed from the api doesn't contain
-	            # instance specific information
-	            bdms = objects.BlockDeviceMappingList.get_by_instance_uuid(
-	                    context, instance.uuid)
+	        # The block_device_mapping passed from the api doesn't contain
+	        # instance specific information
+	        bdms = objects.BlockDeviceMappingList.get_by_instance_uuid(
+	                context, instance.uuid)
 	
-#		    CONF = cfg.CONF
-#		    if CONF.bypass_scheduler:
-#	                host['host']=None
-#	                host['nodename']=None
-	#            import pudb;pu.db
-	            self.compute_rpcapi.build_and_run_instance(context,
-	                    instance=instance, host=host['host'], image=image,
-	                    request_spec=request_spec,
-	                    filter_properties=local_filter_props,
-	                    admin_password=admin_password,
-	                    injected_files=injected_files,
-	                    requested_networks=requested_networks,
-	                    security_groups=security_groups,
-	                    block_device_mapping=bdms, node=host['nodename'],
-	                    limits=host['limits'])
+#	        CONF = cfg.CONF
+#	        if CONF.bypass_scheduler:
+#	            host['host']=None
+#	            host['nodename']=None
+	#           import pudb;pu.db
+	        self.compute_rpcapi.build_and_run_instance(context,
+	                instance=instance, host=host['host'], image=image,
+	                request_spec=request_spec,
+	                filter_properties=local_filter_props,
+	                admin_password=admin_password,
+	                injected_files=injected_files,
+	                requested_networks=requested_networks,
+	                security_groups=security_groups,
+	                block_device_mapping=bdms, node=host['nodename'],
+	                limits=host['limits'])
 	else:
 		max_attempts = CONF.scheduler_max_attempts
 	        if max_attempts < 1:
