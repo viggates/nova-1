@@ -619,8 +619,6 @@ class ComputeTaskManager(base.Base):
             security_groups, block_device_mapping=None, legacy_bdm=True):
         # TODO(ndipanov): Remove block_device_mapping and legacy_bdm in version
         #                 2.0 of the RPC API.
-#	import pudb;pu.db
-	LOG.info("Got new request ***********")
 	CONF = cfg.CONF
         if not CONF.bypass_scheduler:
 	    request_spec = scheduler_utils.build_request_spec(context, image,
@@ -666,11 +664,6 @@ class ComputeTaskManager(base.Base):
 	        bdms = objects.BlockDeviceMappingList.get_by_instance_uuid(
 	                context, instance.uuid)
 	
-#	        CONF = cfg.CONF
-#	        if CONF.bypass_scheduler:
-#	            host['host']=None
-#	            host['nodename']=None
-	#           import pudb;pu.db
 	        self.compute_rpcapi.build_and_run_instance(context,
 	                instance=instance, host=host['host'], image=image,
 	                request_spec=request_spec,
@@ -686,8 +679,6 @@ class ComputeTaskManager(base.Base):
 	        if max_attempts < 1:
 	            raise exception.NovaException(_("Invalid value for "
                        "max_attempts', must be >= 1"))
-#		import pudb;pu.db
-                # Removed "scheduler_utils.populate_retry"
 
                 retry = filter_properties.setdefault(
                    'retry', {
@@ -697,9 +688,6 @@ class ComputeTaskManager(base.Base):
                 retry['num_attempts'] += 1
 		if retry['num_attempts'] > max_attempts:
 		    raise exception.NovaException(_("Exceeded max attempts"))
-
-#                       scheduler_utils.populate_retry(filter_properties,
-#                        instances[0].uuid)
 
 		for instance in instances:
 		    try:
@@ -724,8 +712,6 @@ class ComputeTaskManager(base.Base):
                             block_device_mapping=bdms, node=None,
                             limits=None)
 
-
-	
     def _delete_image(self, context, image_id):
         return self.image_api.delete(context, image_id)
 

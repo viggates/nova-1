@@ -927,7 +927,6 @@ class ComputeAPI(object):
             cctxt = self.client.prepare(server=host, version=version)
 	else:
 	    topic=instance.system_metadata['instance_type_name'].replace('.', '-')
-            #instance_type_topic = instance_type.name.replace('.', '-')
             target = messaging.Target(topic=topic, version='3.0')
             version_cap = self.VERSION_ALIASES.get(CONF.upgrade_levels.compute,
                                                CONF.upgrade_levels.compute)

@@ -59,7 +59,6 @@ class FilterScheduler(driver.Scheduler):
 
     def select_destinations(self, context, request_spec, filter_properties):
         """Selects a filtered set of hosts and nodes."""
-	# import pudb;pu.db
         self.notifier.info(context, 'scheduler.select_destinations.start',
                            dict(request_spec=request_spec))
 

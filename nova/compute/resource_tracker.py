@@ -377,7 +377,7 @@ class ResourceTracker(object):
         self._sync_compute_node(context, resources)
 	self.resource=resources
 
-    def get_available_oldresource(self):
+    def get_resource(self):
 	return self.resource
 
     def _sync_compute_node(self, context, resources):
@@ -513,7 +513,6 @@ class ResourceTracker(object):
         # NOTE(pmurray): the stats field is stored as a json string. The
         # json conversion will be done automatically by the ComputeNode object
         # so this can be removed when using ComputeNode.
-#	import pudb;pu.db
         values['stats'] = jsonutils.dumps(values['stats'])
 
         if not self._resource_change(values):
@@ -535,7 +534,6 @@ class ResourceTracker(object):
             context, (self.host, self.nodename), stats)
 
     def _update_usage(self, context, resources, usage, sign=1):
-	# import pudb;pu.db
         mem_usage = usage['memory_mb']
 
         overhead = self.driver.estimate_instance_overhead(usage)

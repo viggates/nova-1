@@ -635,7 +635,6 @@ class ComputeManager(manager.Manager):
                             self.driver.need_legacy_block_device_info
 
     def _get_resource_tracker(self, nodename):
-#	import pudb;pu.db
         rt = self._resource_tracker_dict.get(nodename)
         if not rt:
             if not self.driver.node_is_available(nodename):
@@ -1204,10 +1203,8 @@ class ComputeManager(manager.Manager):
         # Make compute listen on additional topics based on instance types if 
         # it should pick up create instance requests directly placed on a
         # queue
-#	import pudb;pu.db
         if CONF.bypass_scheduler:
                 self._subscribe_to_instance_type_topics()
- #               pass
         else:
                 pass
 
@@ -1218,73 +1215,51 @@ class ComputeManager(manager.Manager):
         filter - Ram, Cores and Disk
         """
 
-
-	#Need to move some of these config to the right place
-	## RAM allocation Ratio
+	CONF = cfg.CONF
+	# RAM allocation Ratio
 	ram_allocation_ratio_opt = cfg.FloatOpt('ram_allocation_ratio',
         default=1.5,
         help='Virtual ram to physical ram allocation ratio which affects '
              'all ram filters. This configuration specifies a global ratio '
              'for RamFilter. For AggregateRamFilter, it will fall back to '
              'this configuration value if no per-aggregate setting found.')
-
-	CONF = cfg.CONF
 	CONF.register_opt(ram_allocation_ratio_opt)
 	ram_allocation_ratio = CONF.ram_allocation_ratio
-	# Should we need to use the logic in AggregateRamFilter
 
-	## CPU allocation ratio
+	# CPU allocation ratio
 	cpu_allocation_ratio_opt = cfg.FloatOpt('cpu_allocation_ratio',
         default=16.0,
         help='Virtual CPU to physical CPU allocation ratio which affects '
              'all CPU filters. This configuration specifies a global ratio '
              'for CoreFilter. For AggregateCoreFilter, it will fall back to '
              'this configuration value if no per-aggregate setting found.')
-
-	CONF = cfg.CONF
 	CONF.register_opt(cpu_allocation_ratio_opt)
 	cpu_allocation_ratio = CONF.cpu_allocation_ratio
 
 	## Disk allocation ratio
 	disk_allocation_ratio_opt = cfg.FloatOpt("disk_allocation_ratio", default=1.0,
                          help="Virtual disk to physical disk allocation ratio")
-
-	CONF = cfg.CONF
 	CONF.register_opt(disk_allocation_ratio_opt)
 	disk_allocation_ratio = CONF.disk_allocation_ratio
 
         # Check if sufficient RAM is available.
         requested_ram = instance_type.memory_mb
         free_ram_mb = host_state['free_ram_mb']
-        total_usable_ram_mb = host_state['memory_mb'] #host_state['total_usable_ram_mb']
-#        ram_allocation_ratio = 1 #self._get_ram_allocation_ratio(host_state,
-                                 #                         filter_properties)
+        total_usable_ram_mb = host_state['memory_mb']
         memory_mb_limit = total_usable_ram_mb * ram_allocation_ratio
         used_ram_mb = total_usable_ram_mb - free_ram_mb
         usable_ram = memory_mb_limit - used_ram_mb
         if not usable_ram >= requested_ram:
-            LOG.info("Cannot subscribe to the type(%s) as the host is not capable - RAM", instance_type.name)
+            LOG.info("Cannot subscribe to the type(%s) as the host is not capable of allocating requested memory", instance_type.name)
             return False
-        # save oversubscription limit for compute node to test against:
-#        host_state.limits['memory_mb'] = memory_mb_limit
-
-
 
 	# Check if sufficient Cores are there
 	instance_vcpus = instance_type.vcpus
         vcpus_total = host_state['vcpus'] * cpu_allocation_ratio
-
-        # Only provide a VCPU limit to compute if the virt driver is reporting
-        # an accurate count of installed VCPUs. (XenServer driver does not)
-#        if vcpus_total > 0:
-#            host_state.limits['vcpu'] = vcpus_total
-
         free_vcpus = vcpus_total - host_state['vcpus_used']
         if free_vcpus < instance_vcpus:
-            LOG.info("Cannot subscribe to the type(%s) as the host is not capable - vcpu", instance_type.name)
+            LOG.info("Cannot subscribe to the type(%s) as the host is not capable of allocating requested vcpus", instance_type.name)
             return False
-
-
 
 	# Check if sufficient disk space is there
 	requested_disk = (1024 * (instance_type.root_gb +
@@ -1299,19 +1274,14 @@ class ComputeManager(manager.Manager):
                            " (%(physical)sgb > %(database)sgb)") %
                          {'physical': least_gb, 'database': free_gb})
             free_gb = min(least_gb, free_gb)
-
 	free_disk_mb = free_gb * 1024
         total_usable_disk_mb = host_state['local_gb'] * 1024
-
         disk_mb_limit = total_usable_disk_mb * disk_allocation_ratio
         used_disk_mb = total_usable_disk_mb - free_disk_mb
         usable_disk_mb = disk_mb_limit - used_disk_mb
 	if not usable_disk_mb >= requested_disk:
-	    LOG.info("Cannot subscribe to the type(%s) as the host is not capable - disk", instance_type.name)
+	    LOG.info("Cannot subscribe to the type(%s) as the host is not capable of allocating requested disk space", instance_type.name)
             return False
-
-#        disk_gb_limit = disk_mb_limit / 1024
-#        host_state.limits['disk_gb'] = disk_gb_limit
 
         return True
 
@@ -1321,36 +1291,25 @@ class ComputeManager(manager.Manager):
         endpoints.extend(self.additional_endpoints)
         serializer = obj_base.NovaObjectSerializer()
         context = nova.context.get_admin_context()
-	#test
 	self.update_available_resource(context)
 	nodenames = set(self.driver.get_available_nodes())
         for nodename in nodenames:
             rt = self._get_resource_tracker(nodename)
-#	    rt._update_available_resource()
-            host_state=rt.get_available_oldresource()
-#	    host_state=self.update_host_state_info(host_state)
+            host_state=rt.get_resource()
 
 	LOG.info('available resource = %s',host_state)
-	#get_available_oldresource()
         instance_types = flavor_obj.FlavorList.get_all(context)
-#	instance_types=['m1.nano']
         for instance_type in instance_types:
-#	instance_type='m1.nano'
-		# 0 - stopped
-		# 1 - running
 	        instance_type_topic = instance_type.name.replace('.', '-')
 		if not (instance_type_topic in self.rpcserver_flavor.keys()):
-			LOG.info(_("Creating RPC server for %s")
-                                         % instance_type_topic)
                         target = messaging.Target(topic=instance_type_topic,
                                                  server=self.host)
 			self.rpcserver_flavor[instance_type_topic]=rpc.get_server(target,endpoints, serializer)
 			self.rpcserver_flavor_status[instance_type_topic]=0
 		if (self._subscribe_unsubscribe_topic(host_state,instance_type)):
 			if (self.rpcserver_flavor_status[instance_type_topic]==0):
-				LOG.info(_("Starting RPC server for %s")
+				LOG.info(_("Subscribing to flavor %s")
                                          % instance_type_topic)
-#				import pudb;pu.db
 				#Stop method does not clear the objects, hence wait needs to be called
                                 #after stop ideally. Wait method is the one which clears the objects.
                                 #In our case we have called wait before stop because, the thread we are
@@ -1360,60 +1319,13 @@ class ComputeManager(manager.Manager):
 				self.rpcserver_flavor[instance_type_topic].start()
 				self.rpcserver_flavor_status[instance_type_topic]=1
 		else:
-			LOG.info(_("Stopping and Deleting RPC server for %s")
+			LOG.info(_("Un-Subscribing to flavor %s")
 						 % instance_type_topic)
 			if (self.rpcserver_flavor_status[instance_type_topic]==1):
-				LOG.info(_("Stopped RPC server for %s")
-                                         % instance_type_topic)
-#				import pudb;pu.db
 				self.rpcserver_flavor[instance_type_topic].stop()
-#				self.rpcserver_flavor[instance_type_topic].wait()
 				self.rpcserver_flavor_status[instance_type_topic]=0
 
 	self.update_available_resource(context)
-			# self.rpcserver.stop()
-
-#   def update_host_state_info(self,host_state):
-#	"""Update information about a host"""
-#	all_ram_mb = host_state['memory_mb']
-	#free_gb = compute['free_disk_gb']
-	#least_gb = compute.get('disk_available_least')
-	#if least_gb is not None:
-        #    if least_gb > free_gb:
-	#	LOG.warn("Host has more disk space than DB")
-	#    free_gb = min(least_gb, free_gb)
-#	free_disk_mb = free_gb * 1024
-#	disk_mb_used = host_state['local_gb_used'] * 1024
-#	free_ram_mb = host_state['free_ram_mb']
-#        total_usable_ram_mb = all_ram_mb
-#	host_state['']
-#       total_usable_disk_gb = compute['local_gb']
-#       free_disk_mb = free_disk_mb
-#       vcpus_total = compute['vcpus']
-#       vcpus_used = compute['vcpus_used']
-        #updated = compute['updated_at']
-#	if 'pci_stats' in compute:
-#            pci_stats = pci_stats.PciDeviceStats(compute['pci_stats'])
-#        else:
-#            pci_stats = None
-#	host_ip = compute['host_ip']
-#        hypervisor_type = compute.get('hypervisor_type')
-#        hypervisor_version = compute.get('hypervisor_version')
-#        hypervisor_hostname = compute.get('hypervisor_hostname')
-#        cpu_info = compute.get('cpu_info')
-#        if compute.get('supported_instances'):
-#            self.supported_instances = jsonutils.loads(
-#                    compute.get('supported_instances'))
-#	stats = compute.get('stats', None) or '{}'
-#        stats = jsonutils.loads(stats)
-
-        # Track number of instances on host
-#        num_instances = int(self.stats.get('num_instances', 0))
-
-#        num_io_ops = int(self.stats.get('io_workload', 0))
-
-        # update metrics
-        #self._update_metrics_from_compute_node(compute)
 	
     def get_console_topic(self, context):
         """Retrieves the console host for a project on this host.
@@ -2366,7 +2278,6 @@ class ComputeManager(manager.Manager):
                 # *after* the resource tracker instance claim, as that is where
                 # the host is set on the instance.
 		#Assuming this is where instance is launched successfully. So we can resubscribe if required
-#		import pudb;pu.db
 	        self._subscribe_to_instance_type_topics()
 
                 self._validate_instance_group_policy(context, instance,
@@ -2458,10 +2369,6 @@ class ComputeManager(manager.Manager):
                 extra_usage_info={'message': _('Success')},
                 network_info=network_info)
 	#Assuming this is where instance is launched successfully. So we can resubscribe if required
-#	import pudb;pu.db
-#        self._subscribe_to_instance_type_topics()
-
-	
 
     @contextlib.contextmanager
     def _build_resources(self, context, instance, requested_networks,
@@ -2790,9 +2697,6 @@ class ComputeManager(manager.Manager):
         def do_terminate_instance(instance, bdms):
             try:
                 self._delete_instance(context, instance, bdms, quotas)
-	    	# I guess this is the place where subscription needs to refreshed.
- 	    	# Also need to validation if scalable scheduler is True
-	    	#self._subscribe_to_instance_type_topics()
             except exception.InstanceNotFound:
                 LOG.info(_LI("Instance disappeared during terminate"),
                          instance=instance)
