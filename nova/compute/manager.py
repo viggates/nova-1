@@ -1218,7 +1218,6 @@ class ComputeManager(manager.Manager):
         filter - Ram, Cores and Disk
         """
 
-#	import pudb;pu.db
 
 	#Need to move some of these config to the right place
 	## RAM allocation Ratio
@@ -1327,6 +1326,7 @@ class ComputeManager(manager.Manager):
 	nodenames = set(self.driver.get_available_nodes())
         for nodename in nodenames:
             rt = self._get_resource_tracker(nodename)
+#	    rt._update_available_resource()
             host_state=rt.get_available_oldresource()
 #	    host_state=self.update_host_state_info(host_state)
 
