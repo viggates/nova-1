@@ -375,6 +375,10 @@ class ResourceTracker(object):
         metrics = self._get_host_metrics(context, self.nodename)
         resources['metrics'] = jsonutils.dumps(metrics)
         self._sync_compute_node(context, resources)
+	self.resource=resources
+
+    def get_available_oldresource(self):
+	return self.resource
 
     def _sync_compute_node(self, context, resources):
         """Create or update the compute node DB record."""
@@ -530,6 +534,7 @@ class ResourceTracker(object):
             context, (self.host, self.nodename), stats)
 
     def _update_usage(self, context, resources, usage, sign=1):
+	# import pudb;pu.db
         mem_usage = usage['memory_mb']
 
         overhead = self.driver.estimate_instance_overhead(usage)
