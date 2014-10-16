@@ -836,7 +836,8 @@ class ComputeManager(manager.Manager):
                         instance.uuid)
 	# I guess this is the place where subscription needs to refreshed.
         # Also need to validate if scalable scheduler is True
-        self._subscribe_to_instance_type_topics()
+	if CONF.bypass_scheduler:
+            self._subscribe_to_instance_type_topics()
 
     def _init_instance(self, context, instance):
         '''Initialize this instance during service init.'''
@@ -2280,7 +2281,8 @@ class ComputeManager(manager.Manager):
                 # *after* the resource tracker instance claim, as that is where
                 # the host is set on the instance.
 		#Assuming this is where instance is launched successfully. So we can resubscribe if required
-	        self._subscribe_to_instance_type_topics()
+		if CONF.bypass_scheduler:
+	            self._subscribe_to_instance_type_topics()
 
                 self._validate_instance_group_policy(context, instance,
                         filter_properties)
