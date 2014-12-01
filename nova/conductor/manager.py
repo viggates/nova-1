@@ -679,7 +679,7 @@ class ComputeTaskManager(base.Base):
 	        if max_attempts < 1:
 	            raise exception.NovaException(_("Invalid value for "
                        "max_attempts', must be >= 1"))
-		import pudb;pu.db
+#		import pudb;pu.db
                 # Removed "scheduler_utils.populate_retry"
 
                 retry = filter_properties.setdefault(
