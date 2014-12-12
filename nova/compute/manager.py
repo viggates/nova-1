@@ -1318,6 +1318,9 @@ class ComputeManager(manager.Manager):
 				self.rpcserver_flavor[instance_type_topic].wait()
 				self.rpcserver_flavor[instance_type_topic].start()
 				self.rpcserver_flavor_status[instance_type_topic]=1
+			else:
+                                LOG.info(_("Retaining Subscription to flavor %s")
+                                         % instance_type_topic)
 		else:
 			LOG.info(_("Un-Subscribing to flavor %s")
 						 % instance_type_topic)
