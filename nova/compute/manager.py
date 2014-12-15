@@ -1212,29 +1212,30 @@ class ComputeManager(manager.Manager):
         # it should pick up create instance requests directly placed on a
         # queue
         if CONF.bypass_scheduler:
-		# RAM allocation Ratio
-	        ram_allocation_ratio_opt = cfg.FloatOpt('ram_allocation_ratio',
-	        default=1.5,
-	        help='Virtual ram to physical ram allocation ratio which affects '
-	             'all ram filters. This configuration specifies a global ratio '
-	             'for RamFilter. For AggregateRamFilter, it will fall back to '
-	             'this configuration value if no per-aggregate setting found.')
-	        CONF.register_opt(ram_allocation_ratio_opt)
+	    # RAM allocation Ratio
+	    ram_allocation_ratio_opt = cfg.FloatOpt('ram_allocation_ratio',
+		  default=1.5,
+	          help='Virtual ram to physical ram allocation ratio which affects '
+	               'all ram filters. This configuration specifies a global ratio '
+	               'for RamFilter. For AggregateRamFilter, it will fall back to '
+	               'this configuration value if no per-aggregate setting found.')
+	    CONF.register_opt(ram_allocation_ratio_opt)
 
-	        # CPU allocation ratio
-	        cpu_allocation_ratio_opt = cfg.FloatOpt('cpu_allocation_ratio',
-	        default=16.0,
-	        help='Virtual CPU to physical CPU allocation ratio which affects '
-	             'all CPU filters. This configuration specifies a global ratio '
-	             'for CoreFilter. For AggregateCoreFilter, it will fall back to '
-	             'this configuration value if no per-aggregate setting found.')
-	        CONF.register_opt(cpu_allocation_ratio_opt)
+	    # CPU allocation ratio
+	    cpu_allocation_ratio_opt = cfg.FloatOpt('cpu_allocation_ratio',
+	          default=16.0,
+	          help='Virtual CPU to physical CPU allocation ratio which affects '
+	               'all CPU filters. This configuration specifies a global ratio '
+	               'for CoreFilter. For AggregateCoreFilter, it will fall back to '
+	               'this configuration value if no per-aggregate setting found.')
+	    CONF.register_opt(cpu_allocation_ratio_opt)
 
-		## Disk allocation ratio
-	        disk_allocation_ratio_opt = cfg.FloatOpt("disk_allocation_ratio", default=1.0,
-	                         help="Virtual disk to physical disk allocation ratio")
-	        CONF.register_opt(disk_allocation_ratio_opt)
-		self._subscribe_to_instance_type_topics()
+	    ## Disk allocation ratio
+	    disk_allocation_ratio_opt = cfg.FloatOpt("disk_allocation_ratio",
+                  default=1.0,
+	          help="Virtual disk to physical disk allocation ratio")
+	    CONF.register_opt(disk_allocation_ratio_opt)
+	    self._subscribe_to_instance_type_topics()
         else:
                 pass
 
