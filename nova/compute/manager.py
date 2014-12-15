@@ -1212,7 +1212,29 @@ class ComputeManager(manager.Manager):
         # it should pick up create instance requests directly placed on a
         # queue
         if CONF.bypass_scheduler:
-                self._subscribe_to_instance_type_topics()
+		# RAM allocation Ratio
+	        ram_allocation_ratio_opt = cfg.FloatOpt('ram_allocation_ratio',
+	        default=1.5,
+	        help='Virtual ram to physical ram allocation ratio which affects '
+	             'all ram filters. This configuration specifies a global ratio '
+	             'for RamFilter. For AggregateRamFilter, it will fall back to '
+	             'this configuration value if no per-aggregate setting found.')
+	        CONF.register_opt(ram_allocation_ratio_opt)
+
+	        # CPU allocation ratio
+	        cpu_allocation_ratio_opt = cfg.FloatOpt('cpu_allocation_ratio',
+	        default=16.0,
+	        help='Virtual CPU to physical CPU allocation ratio which affects '
+	             'all CPU filters. This configuration specifies a global ratio '
+	             'for CoreFilter. For AggregateCoreFilter, it will fall back to '
+	             'this configuration value if no per-aggregate setting found.')
+	        CONF.register_opt(cpu_allocation_ratio_opt)
+
+		## Disk allocation ratio
+	        disk_allocation_ratio_opt = cfg.FloatOpt("disk_allocation_ratio", default=1.0,
+	                         help="Virtual disk to physical disk allocation ratio")
+	        CONF.register_opt(disk_allocation_ratio_opt)
+		self._subscribe_to_instance_type_topics()
         else:
                 pass
 
@@ -1223,34 +1245,8 @@ class ComputeManager(manager.Manager):
         filter - Ram, Cores and Disk
         """
 
-	CONF = cfg.CONF
-	# RAM allocation Ratio
-	ram_allocation_ratio_opt = cfg.FloatOpt('ram_allocation_ratio',
-        default=1.5,
-        help='Virtual ram to physical ram allocation ratio which affects '
-             'all ram filters. This configuration specifies a global ratio '
-             'for RamFilter. For AggregateRamFilter, it will fall back to '
-             'this configuration value if no per-aggregate setting found.')
-	CONF.register_opt(ram_allocation_ratio_opt)
-	ram_allocation_ratio = CONF.ram_allocation_ratio
-
-	# CPU allocation ratio
-	cpu_allocation_ratio_opt = cfg.FloatOpt('cpu_allocation_ratio',
-        default=16.0,
-        help='Virtual CPU to physical CPU allocation ratio which affects '
-             'all CPU filters. This configuration specifies a global ratio '
-             'for CoreFilter. For AggregateCoreFilter, it will fall back to '
-             'this configuration value if no per-aggregate setting found.')
-	CONF.register_opt(cpu_allocation_ratio_opt)
-	cpu_allocation_ratio = CONF.cpu_allocation_ratio
-
-	## Disk allocation ratio
-	disk_allocation_ratio_opt = cfg.FloatOpt("disk_allocation_ratio", default=1.0,
-                         help="Virtual disk to physical disk allocation ratio")
-	CONF.register_opt(disk_allocation_ratio_opt)
-	disk_allocation_ratio = CONF.disk_allocation_ratio
-
         # Check if sufficient RAM is available.
+	ram_allocation_ratio = CONF.ram_allocation_ratio
         requested_ram = instance_type.memory_mb
         free_ram_mb = host_state['free_ram_mb']
         total_usable_ram_mb = host_state['memory_mb']
@@ -1262,6 +1258,7 @@ class ComputeManager(manager.Manager):
             return False
 
 	# Check if sufficient Cores are there
+	cpu_allocation_ratio = CONF.cpu_allocation_ratio
 	instance_vcpus = instance_type.vcpus
         vcpus_total = host_state['vcpus'] * cpu_allocation_ratio
         free_vcpus = vcpus_total - host_state['vcpus_used']
@@ -1270,6 +1267,7 @@ class ComputeManager(manager.Manager):
             return False
 
 	# Check if sufficient disk space is there
+	disk_allocation_ratio = CONF.disk_allocation_ratio
 	requested_disk = (1024 * (instance_type.root_gb +
                                  instance_type.ephemeral_gb) +
                          instance_type.swap)
