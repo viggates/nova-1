@@ -1205,8 +1205,7 @@ class ComputeManager(manager.Manager):
             return power_state.NOSTATE
 
     def post_start_hook(self):
-        """
-        Perform additional operations after the compute service is
+        """Perform additional operations after the compute service is
         up and running
         """
         # Make compute listen on additional topics based on instance types if
@@ -1258,9 +1257,9 @@ class ComputeManager(manager.Manager):
         used_ram_mb = total_usable_ram_mb - free_ram_mb
         usable_ram = memory_mb_limit - used_ram_mb
         if not usable_ram >= requested_ram:
-            LOG.info("Cannot subscribe to the type(%s) as the host is "
-                "not capable of allocating requested "
-                "memory", instance_type.name)
+            LOG.info(_LI("Cannot subscribe to the type(%s) as the host is "
+                "not capable of allocating requested memory"),
+                instance_type.name)
             return False
 
         # Check if sufficient Cores are there
@@ -1269,9 +1268,9 @@ class ComputeManager(manager.Manager):
         vcpus_total = host_state['vcpus'] * cpu_allocation_ratio
         free_vcpus = vcpus_total - host_state['vcpus_used']
         if free_vcpus < instance_vcpus:
-            LOG.info("Cannot subscribe to the type(%s) as the host is "
-                "not capable of allocating requested "
-                "vcpus", instance_type.name)
+            LOG.info(_LI("Cannot subscribe to the type(%s) as the host is "
+                "not capable of allocating requested vcpus"),
+                instance_type.name)
             return False
 
         # Check if sufficient disk space is there
@@ -1284,8 +1283,8 @@ class ComputeManager(manager.Manager):
         if least_gb is not None:
             if least_gb > free_gb:
                 # can occur when an instance in database is not on host
-                LOG.warn(_("Host has more disk space than database expected"
-                           " (%(physical)sgb > %(database)sgb)") %
+                LOG.warning(_("Host has more disk space than database expected"
+                           "(%(physical)sgb > %(database)sgb)") %
                          {'physical': least_gb, 'database': free_gb})
             free_gb = min(least_gb, free_gb)
         free_disk_mb = free_gb * 1024
@@ -1294,9 +1293,9 @@ class ComputeManager(manager.Manager):
         used_disk_mb = total_usable_disk_mb - free_disk_mb
         usable_disk_mb = disk_mb_limit - used_disk_mb
         if not usable_disk_mb >= requested_disk:
-            LOG.info("Cannot subscribe to the type(%s) as the host is "
-                "not capable of allocating requested "
-                "disk space", instance_type.name)
+            LOG.info(_LI("Cannot subscribe to the type(%s) as the host is "
+                "not capable of allocating requested disk space"),
+                instance_type.name)
             return False
         return True
 
@@ -1312,7 +1311,7 @@ class ComputeManager(manager.Manager):
             rt = self._get_resource_tracker(nodename)
             host_state = rt.get_resource()
 
-        LOG.info('available resource = %s', host_state)
+        LOG.info(_LI('available resource = %s'), host_state)
         instance_types = flavor_obj.FlavorList.get_all(context)
         for instance_type in instance_types:
             instance_type_topic = instance_type.name.replace('.', '-')
@@ -1324,7 +1323,7 @@ class ComputeManager(manager.Manager):
                 self.rpcserver_flavor_status[instance_type_topic] = 0
             if (self._subscribe_unsubscribe_topic(host_state, instance_type)):
                 if (self.rpcserver_flavor_status[instance_type_topic] == 0):
-                    LOG.info(_("Subscribing to flavor %s")
+                    LOG.info(_LI("Subscribing to flavor %s")
                              % instance_type_topic)
                     # Stop method does not clear the objects, hence wait needs
                     # to be called after stop ideally. Wait method is the one
@@ -1336,10 +1335,10 @@ class ComputeManager(manager.Manager):
                     self.rpcserver_flavor[instance_type_topic].start()
                     self.rpcserver_flavor_status[instance_type_topic] = 1
                 else:
-                    LOG.info(_("Retaining Subscription to flavor %s")
+                    LOG.info(_LI("Retaining Subscription to flavor %s")
                              % instance_type_topic)
             else:
-                LOG.info(_("Un-Subscribing to flavor %s")
+                LOG.info(_LI("Un-Subscribing to flavor %s")
                                         % instance_type_topic)
                 if (self.rpcserver_flavor_status[instance_type_topic] == 1):
                     self.rpcserver_flavor[instance_type_topic].stop()
