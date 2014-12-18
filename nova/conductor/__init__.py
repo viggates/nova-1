@@ -43,4 +43,3 @@ bypass_scheduler_opt = oslo.config.cfg.BoolOpt('bypass_scheduler',
 
 CONF = oslo.config.cfg.CONF
 CONF.register_opt(bypass_scheduler_opt)
-
