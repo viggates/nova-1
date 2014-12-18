@@ -967,10 +967,11 @@ class ComputeAPI(object):
                     for (network_id, address, port_id, _) in
                         requested_networks.as_tuples()]
 
-	if not CONF.bypass_scheduler:
+        if not CONF.bypass_scheduler:
             cctxt = self.client.prepare(server=host, version=version)
-	else:
-	    topic=instance.system_metadata['instance_type_name'].replace('.', '-')
+        else:
+            topic = instance.system_metadata['instance_type_name'].replace('.',
+                                                                           '-')
             target = messaging.Target(topic=topic, version='3.0')
             version_cap = self.VERSION_ALIASES.get(CONF.upgrade_levels.compute,
                                                CONF.upgrade_levels.compute)

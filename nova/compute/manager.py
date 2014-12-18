@@ -842,9 +842,9 @@ class ComputeManager(manager.Manager):
             else:
                 self.consoleauth_rpcapi.delete_tokens_for_instance(context,
                         instance.uuid)
-	# I guess this is the place where subscription needs to refreshed.
+        # I guess this is the place where subscription needs to refreshed.
         # Also need to validate if scalable scheduler is True
-	if CONF.bypass_scheduler:
+        if CONF.bypass_scheduler:
             self._subscribe_to_instance_type_topics()
 
     def _init_instance(self, context, instance):
@@ -1209,38 +1209,40 @@ class ComputeManager(manager.Manager):
         Perform additional operations after the compute service is
         up and running
         """
-        # Make compute listen on additional topics based on instance types if 
+        # Make compute listen on additional topics based on instance types if
         # it should pick up create instance requests directly placed on a
         # queue
         if CONF.bypass_scheduler:
-	    # RAM allocation Ratio
-	    ram_allocation_ratio_opt = cfg.FloatOpt('ram_allocation_ratio',
-		  default=1.5,
-	          help='Virtual ram to physical ram allocation ratio which affects '
-	               'all ram filters. This configuration specifies a global ratio '
-	               'for RamFilter. For AggregateRamFilter, it will fall back to '
-	               'this configuration value if no per-aggregate setting found.')
-	    CONF.register_opt(ram_allocation_ratio_opt)
+            # RAM allocation Ratio
+            ram_allocation_ratio_opt = cfg.FloatOpt('ram_allocation_ratio',
+                default=1.5,
+                help='Virtual ram to physical ram allocation ratio which '
+                     'affects all ram filters. This configuration specifies '
+                     'a global ratio for RamFilter. For AggregateRamFilter, '
+                     'it will fall back to this configuration value if no '
+                     'per-aggregate setting found.')
+            CONF.register_opt(ram_allocation_ratio_opt)
 
-	    # CPU allocation ratio
-	    cpu_allocation_ratio_opt = cfg.FloatOpt('cpu_allocation_ratio',
-	          default=16.0,
-	          help='Virtual CPU to physical CPU allocation ratio which affects '
-	               'all CPU filters. This configuration specifies a global ratio '
-	               'for CoreFilter. For AggregateCoreFilter, it will fall back to '
-	               'this configuration value if no per-aggregate setting found.')
-	    CONF.register_opt(cpu_allocation_ratio_opt)
+            # CPU allocation ratio
+            cpu_allocation_ratio_opt = cfg.FloatOpt('cpu_allocation_ratio',
+                default=16.0,
+                help='Virtual CPU to physical CPU allocation ratio which '
+                     'affects all CPU filters. This configuration specifies '
+                     'a global ratio for CoreFilter. For AggregateCoreFilter, '
+                     'it will fall back to this configuration value if no '
+                     'per-aggregate setting found.')
+            CONF.register_opt(cpu_allocation_ratio_opt)
 
-	    ## Disk allocation ratio
-	    disk_allocation_ratio_opt = cfg.FloatOpt("disk_allocation_ratio",
-                  default=1.0,
-	          help="Virtual disk to physical disk allocation ratio")
-	    CONF.register_opt(disk_allocation_ratio_opt)
-	    self._subscribe_to_instance_type_topics()
+            # Disk allocation ratio
+            disk_allocation_ratio_opt = cfg.FloatOpt("disk_allocation_ratio",
+                default=1.0,
+                help="Virtual disk to physical disk allocation ratio")
+            CONF.register_opt(disk_allocation_ratio_opt)
+            self._subscribe_to_instance_type_topics()
         else:
-                pass
+            pass
 
-    def _subscribe_unsubscribe_topic(self,host_state,instance_type):
+    def _subscribe_unsubscribe_topic(self, host_state, instance_type):
         """Validates host resources against instance type and returns
         True to subscribe to the flavor type and False to unsubscribe
         to the flavor type. Makes use of similar code from schedular
@@ -1248,7 +1250,7 @@ class ComputeManager(manager.Manager):
         """
 
         # Check if sufficient RAM is available.
-	ram_allocation_ratio = CONF.ram_allocation_ratio
+        ram_allocation_ratio = CONF.ram_allocation_ratio
         requested_ram = instance_type.memory_mb
         free_ram_mb = host_state['free_ram_mb']
         total_usable_ram_mb = host_state['memory_mb']
@@ -1256,24 +1258,28 @@ class ComputeManager(manager.Manager):
         used_ram_mb = total_usable_ram_mb - free_ram_mb
         usable_ram = memory_mb_limit - used_ram_mb
         if not usable_ram >= requested_ram:
-            LOG.info("Cannot subscribe to the type(%s) as the host is not capable of allocating requested memory", instance_type.name)
+            LOG.info("Cannot subscribe to the type(%s) as the host is "
+                "not capable of allocating requested "
+                "memory", instance_type.name)
             return False
 
-	# Check if sufficient Cores are there
-	cpu_allocation_ratio = CONF.cpu_allocation_ratio
-	instance_vcpus = instance_type.vcpus
+        # Check if sufficient Cores are there
+        cpu_allocation_ratio = CONF.cpu_allocation_ratio
+        instance_vcpus = instance_type.vcpus
         vcpus_total = host_state['vcpus'] * cpu_allocation_ratio
         free_vcpus = vcpus_total - host_state['vcpus_used']
         if free_vcpus < instance_vcpus:
-            LOG.info("Cannot subscribe to the type(%s) as the host is not capable of allocating requested vcpus", instance_type.name)
+            LOG.info("Cannot subscribe to the type(%s) as the host is "
+                "not capable of allocating requested "
+                "vcpus", instance_type.name)
             return False
 
-	# Check if sufficient disk space is there
-	disk_allocation_ratio = CONF.disk_allocation_ratio
-	requested_disk = (1024 * (instance_type.root_gb +
+        # Check if sufficient disk space is there
+        disk_allocation_ratio = CONF.disk_allocation_ratio
+        requested_disk = (1024 * (instance_type.root_gb +
                                  instance_type.ephemeral_gb) +
                          instance_type.swap)
-	free_gb = host_state['free_disk_gb']
+        free_gb = host_state['free_disk_gb']
         least_gb = host_state.get('disk_available_least')
         if least_gb is not None:
             if least_gb > free_gb:
@@ -1282,15 +1288,16 @@ class ComputeManager(manager.Manager):
                            " (%(physical)sgb > %(database)sgb)") %
                          {'physical': least_gb, 'database': free_gb})
             free_gb = min(least_gb, free_gb)
-	free_disk_mb = free_gb * 1024
+        free_disk_mb = free_gb * 1024
         total_usable_disk_mb = host_state['local_gb'] * 1024
         disk_mb_limit = total_usable_disk_mb * disk_allocation_ratio
         used_disk_mb = total_usable_disk_mb - free_disk_mb
         usable_disk_mb = disk_mb_limit - used_disk_mb
-	if not usable_disk_mb >= requested_disk:
-	    LOG.info("Cannot subscribe to the type(%s) as the host is not capable of allocating requested disk space", instance_type.name)
+        if not usable_disk_mb >= requested_disk:
+            LOG.info("Cannot subscribe to the type(%s) as the host is "
+                "not capable of allocating requested "
+                "disk space", instance_type.name)
             return False
-
         return True
 
     def _subscribe_to_instance_type_topics(self):
@@ -1299,45 +1306,47 @@ class ComputeManager(manager.Manager):
         endpoints.extend(self.additional_endpoints)
         serializer = obj_base.NovaObjectSerializer()
         context = nova.context.get_admin_context()
-	self.update_available_resource(context)
-	nodenames = set(self.driver.get_available_nodes())
+        self.update_available_resource(context)
+        nodenames = set(self.driver.get_available_nodes())
         for nodename in nodenames:
             rt = self._get_resource_tracker(nodename)
-            host_state=rt.get_resource()
+            host_state = rt.get_resource()
 
-	LOG.info('available resource = %s',host_state)
+        LOG.info('available resource = %s', host_state)
         instance_types = flavor_obj.FlavorList.get_all(context)
         for instance_type in instance_types:
-	        instance_type_topic = instance_type.name.replace('.', '-')
-		if not (instance_type_topic in self.rpcserver_flavor.keys()):
-                        target = messaging.Target(topic=instance_type_topic,
-                                                 server=self.host)
-			self.rpcserver_flavor[instance_type_topic]=rpc.get_server(target,endpoints, serializer)
-			self.rpcserver_flavor_status[instance_type_topic]=0
-		if (self._subscribe_unsubscribe_topic(host_state,instance_type)):
-			if (self.rpcserver_flavor_status[instance_type_topic]==0):
-				LOG.info(_("Subscribing to flavor %s")
-                                         % instance_type_topic)
-				#Stop method does not clear the objects, hence wait needs to be called
-                                #after stop ideally. Wait method is the one which clears the objects.
-                                #In our case we have called wait before stop because, the thread we are
-                                #trying to kill in wait method is the one which is calling the wait
-                                # method (something like self kill).
-				self.rpcserver_flavor[instance_type_topic].wait()
-				self.rpcserver_flavor[instance_type_topic].start()
-				self.rpcserver_flavor_status[instance_type_topic]=1
-			else:
-                                LOG.info(_("Retaining Subscription to flavor %s")
-                                         % instance_type_topic)
-		else:
-			LOG.info(_("Un-Subscribing to flavor %s")
-						 % instance_type_topic)
-			if (self.rpcserver_flavor_status[instance_type_topic]==1):
-				self.rpcserver_flavor[instance_type_topic].stop()
-				self.rpcserver_flavor_status[instance_type_topic]=0
+            instance_type_topic = instance_type.name.replace('.', '-')
+            if not (instance_type_topic in self.rpcserver_flavor.keys()):
+                target = messaging.Target(topic=instance_type_topic,
+                                          server=self.host)
+                self.rpcserver_flavor[instance_type_topic] = rpc.get_server(
+                                                 target, endpoints, serializer)
+                self.rpcserver_flavor_status[instance_type_topic] = 0
+            if (self._subscribe_unsubscribe_topic(host_state, instance_type)):
+                if (self.rpcserver_flavor_status[instance_type_topic] == 0):
+                    LOG.info(_("Subscribing to flavor %s")
+                             % instance_type_topic)
+                    # Stop method does not clear the objects, hence wait needs
+                    # to be called after stop ideally. Wait method is the one
+                    # which clears the objects. In our case we have called wait
+                    # before stop because, the thread we are trying to kill in
+                    # wait method is the one which is calling the wait method
+                    # (something like self kill).
+                    self.rpcserver_flavor[instance_type_topic].wait()
+                    self.rpcserver_flavor[instance_type_topic].start()
+                    self.rpcserver_flavor_status[instance_type_topic] = 1
+                else:
+                    LOG.info(_("Retaining Subscription to flavor %s")
+                             % instance_type_topic)
+            else:
+                LOG.info(_("Un-Subscribing to flavor %s")
+                                        % instance_type_topic)
+                if (self.rpcserver_flavor_status[instance_type_topic] == 1):
+                    self.rpcserver_flavor[instance_type_topic].stop()
+                    self.rpcserver_flavor_status[instance_type_topic] = 0
 
-	self.update_available_resource(context)
-	
+        self.update_available_resource(context)
+
     def get_console_topic(self, context):
         """Retrieves the console host for a project on this host.
 
@@ -2307,9 +2316,11 @@ class ComputeManager(manager.Manager):
                 # NOTE(russellb) It's important that this validation be done
                 # *after* the resource tracker instance claim, as that is where
                 # the host is set on the instance.
-		#Assuming this is where instance is launched successfully. So we can resubscribe if required
-		if CONF.bypass_scheduler:
-	            self._subscribe_to_instance_type_topics()
+
+                # Assuming this is where instance is launched successfully.
+                # So we can resubscribe if required
+                if CONF.bypass_scheduler:
+                    self._subscribe_to_instance_type_topics()
 
                 self._validate_instance_group_policy(context, instance,
                         filter_properties)
@@ -2399,7 +2410,6 @@ class ComputeManager(manager.Manager):
         self._notify_about_instance_usage(context, instance, 'create.end',
                 extra_usage_info={'message': _('Success')},
                 network_info=network_info)
-	#Assuming this is where instance is launched successfully. So we can resubscribe if required
 
     @contextlib.contextmanager
     def _build_resources(self, context, instance, requested_networks,

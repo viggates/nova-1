@@ -635,7 +635,7 @@ class ComputeTaskManager(base.Base):
             security_groups, block_device_mapping=None, legacy_bdm=True):
         # TODO(ndipanov): Remove block_device_mapping and legacy_bdm in version
         #                 2.0 of the RPC API.
-	CONF = cfg.CONF
+        CONF = cfg.CONF
         if not CONF.bypass_scheduler:
 	    request_spec = scheduler_utils.build_request_spec(context, image,
                                                           instances)
