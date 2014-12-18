@@ -1283,8 +1283,8 @@ class ComputeManager(manager.Manager):
         if least_gb is not None:
             if least_gb > free_gb:
                 # can occur when an instance in database is not on host
-                LOG.warning(_("Host has more disk space than database expected"
-                           "(%(physical)sgb > %(database)sgb)") %
+                LOG.warning(_LW("Host has more disk space than database "
+                           "expected (%(physical)sgb > %(database)sgb)") %
                          {'physical': least_gb, 'database': free_gb})
             free_gb = min(least_gb, free_gb)
         free_disk_mb = free_gb * 1024
